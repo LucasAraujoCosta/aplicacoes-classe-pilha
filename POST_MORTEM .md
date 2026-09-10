@@ -62,7 +62,7 @@ Os testes foram executados utilizando matrizes sintéticas de dimensão $500 \ti
 | Caso de Teste / Funcionalidade | Solução Inicial | Solução Final Refatorada | Status / Resultado |
 | :--- | :--- | :--- | :--- |
 | **Leitura de Arquivo com 'X'** | Falha (`ValueError`) | **Sucesso** (Identifica e inicia em X) | **Especificação Atendida** |
-| **Convenção 1 (Parede) / 0 (Livre)** | Invertida | **Correta** ($1 \to \#$, $0 \to$ Espaço) | **Especificação Atendida** |
+| **Convenção 1 (Parede) / 0 (Livre)** | Invertida | **Correta** | **Especificação Atendida** |
 | **Resolução de Labirinto (DFS)** | Ausente | **Implementada** (Traça caminho de saída) | **Especificação Atendida** |
 | **Flood Fill Iterativo ($500 \times 500$)** | Falha (`PilhaCheiaErro`) | **0.18 s** | **Estabilidade Garantida** |
 | **Geração PPM Bitmap ($1000 \times 1000$)** | $2.42\text{ s}$ | **0.06 s** | **~40x Mais Rápido** |
