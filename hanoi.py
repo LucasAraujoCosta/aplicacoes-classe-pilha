@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List
-from pilha import Pilha
+from pilha import Pilha[cite: 1, 3]
 
 class TorreDeHanoi:
     """
@@ -14,32 +14,54 @@ class TorreDeHanoi:
         self.passo_pausa = passo_pausa
         self.total_passos = 0
 
-        # Cria as 3 hastes como instâncias de Pilha de inteiros
+        # Instancia as 3 hastes usando obrigatoriamente a classe Pilha
         self.pinos: Dict[str, Pilha] = {
-            'A': Pilha('i', n_discos),
-            'B': Pilha('i', n_discos),
-            'C': Pilha('i', n_discos)
+            'A': Pilha('i', n_discos),[cite: 1, 3]
+            'B': Pilha('i', n_discos),[cite: 1, 3]
+            'C': Pilha('i', n_discos)[cite: 1, 3]
         }
 
         # Inicializa a haste A com os discos (maior no fundo)
         for disco in range(n_discos, 0, -1):
-            self.pinos['A'].empilha(disco)
+            self.pinos['A'].empilha(disco)[cite: 1, 3]
 
     def _obter_estado_pinos(self) -> Dict[str, List[int]]:
         """
-        Lê o estado atual das pilhas sem violar a privacidade dos membros internos.
-        Desempilha temporariamente para ler a estrutura de forma limpa e pública.
+        Lê os elementos das pilhas de forma limpa desempilhando e re-empilhando,
+        evitando acessar o atributo privado '_dados' diretamente.
         """
         estado = {}
         for nome, pilha in self.pinos.items():
-            # Acessa os dados através de cópia segura da pilha interna
-            estado[nome] = list(pilha._dados)
+            elementos = []
+            # Desempilha temporariamente para ler o conteúdo
+            while not pilha.pilha_esta_vazia():[cite: 1, 3]
+                elementos.append(pilha.desempilha())[cite: 1, 3]
+            
+            # Restaura a pilha na ordem original
+            for item in reversed(elementos):
+                pilha.empilha(item)[cite: 1, 3]
+                
+            # Inverte a lista para que o índice 0 seja o fundo da haste
+            estado[nome] = list(reversed(elementos))
         return estado
 
-    def renderizar(self) -> None:
-        """Renderiza as hastes e discos proporcionalmente no terminal."""
+    def renderizar_horizontal(self) -> None:
+        """Exibe o estado das pilhas em formato de lista horizontal."""
+        estado = self._obter_estado_pinos()
+        print("Exibição Horizontal (Listas):")
+        for pino in ['A', 'B', 'C']:
+            print(f"Pino {pino}: {estado[pino]}")
+        print()
+
+    def renderizar_vertical(self) -> None:
+        """
+        Renderiza as hastes e discos proporcionalmente no terminal.
+        Usa o caractere '#' para os discos e '|' para o pino central.
+        """
         os.system('cls' if os.name == 'nt' else 'clear')
         print(f"=== TORRE DE HANÓI (Passo: {self.total_passos}) ===\n")
+
+        self.renderizar_horizontal()
 
         largura_max = self.n * 2 + 1
         estado = self._obter_estado_pinos()
@@ -51,7 +73,7 @@ class TorreDeHanoi:
                 discos = estado[pino]
                 if nivel < len(discos):
                     tam = discos[nivel]
-                    desenho_disco = ("=" * tam) + "|" + ("=" * tam)
+                    desenho_disco = ("#" * tam) + "|" + ("#" * tam)
                 else:
                     desenho_disco = "|"
                 
@@ -64,13 +86,13 @@ class TorreDeHanoi:
         print("\n")
 
     def _mover_disco(self, origem: str, destino: str) -> None:
-        disco = self.pinos[origem].desempilha()
-        self.pinos[destino].empilha(disco)
+        disco = self.pinos[origem].desempilha()[cite: 1, 3]
+        self.pinos[destino].empilha(disco)[cite: 1, 3]
         self.total_passos += 1
 
         if self.passo_pausa > 0 and (self.total_passos % self.passo_pausa == 0):
-            self.renderizar()
-            input(f"Avançar para próximo passo? (Passo atual: {self.total_passos}) [ENTER]...")
+            self.renderizar_vertical()
+            input(f"Avançar para o próximo passo? (Passo atual: {self.total_passos}) [ENTER]...")
 
     def resolver_recursivo(self, n: int, origem: str, destino: str, auxiliar: str) -> None:
         if n == 1:
@@ -81,10 +103,10 @@ class TorreDeHanoi:
         self._mover_disco(origem, destino)
         self.resolver_recursivo(n - 1, auxiliar, destino, origem)
 
-    def iniciar() -> None:
+    def iniciar(self) -> None:
         """Inicia a execução da Torre de Hanói."""
-        self.renderizar()
+        self.renderizar_vertical()
         input("Posição Inicial (0 Passos). Pressione ENTER para iniciar a resolução...")
         self.resolver_recursivo(self.n, 'A', 'C', 'B')
-        self.renderizar()
+        self.renderizar_vertical()
         print(f"Concluído com sucesso em {self.total_passos} passos!")
