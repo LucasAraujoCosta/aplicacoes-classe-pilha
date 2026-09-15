@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List
-from pilha import Pilha[cite: 1, 3]
+from pilha import Pilha
 
 class TorreDeHanoi:
     """
@@ -16,14 +16,14 @@ class TorreDeHanoi:
 
         # Instancia as 3 hastes usando obrigatoriamente a classe Pilha
         self.pinos: Dict[str, Pilha] = {
-            'A': Pilha('i', n_discos),[cite: 1, 3]
-            'B': Pilha('i', n_discos),[cite: 1, 3]
-            'C': Pilha('i', n_discos)[cite: 1, 3]
+            'A': Pilha('i', n_discos),
+            'B': Pilha('i', n_discos),
+            'C': Pilha('i', n_discos)
         }
 
         # Inicializa a haste A com os discos (maior no fundo)
         for disco in range(n_discos, 0, -1):
-            self.pinos['A'].empilha(disco)[cite: 1, 3]
+            self.pinos['A'].empilha(disco)
 
     def _obter_estado_pinos(self) -> Dict[str, List[int]]:
         """
@@ -34,12 +34,12 @@ class TorreDeHanoi:
         for nome, pilha in self.pinos.items():
             elementos = []
             # Desempilha temporariamente para ler o conteúdo
-            while not pilha.pilha_esta_vazia():[cite: 1, 3]
-                elementos.append(pilha.desempilha())[cite: 1, 3]
+            while not pilha.pilha_esta_vazia():
+                elementos.append(pilha.desempilha())
             
             # Restaura a pilha na ordem original
             for item in reversed(elementos):
-                pilha.empilha(item)[cite: 1, 3]
+                pilha.empilha(item)
                 
             # Inverte a lista para que o índice 0 seja o fundo da haste
             estado[nome] = list(reversed(elementos))
@@ -86,8 +86,8 @@ class TorreDeHanoi:
         print("\n")
 
     def _mover_disco(self, origem: str, destino: str) -> None:
-        disco = self.pinos[origem].desempilha()[cite: 1, 3]
-        self.pinos[destino].empilha(disco)[cite: 1, 3]
+        disco = self.pinos[origem].desempilha()
+        self.pinos[destino].empilha(disco)
         self.total_passos += 1
 
         if self.passo_pausa > 0 and (self.total_passos % self.passo_pausa == 0):
@@ -110,3 +110,6 @@ class TorreDeHanoi:
         self.resolver_recursivo(self.n, 'A', 'C', 'B')
         self.renderizar_vertical()
         print(f"Concluído com sucesso em {self.total_passos} passos!")
+if __name__ == "__main__":
+    torre = TorreDeHanoi(n_discos=3, passo_pausa=1)
+    torre.iniciar()
