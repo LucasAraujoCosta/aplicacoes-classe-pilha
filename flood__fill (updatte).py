@@ -203,3 +203,13 @@ def salvar_bitmap_ppm(matriz: List[List[int]], caminho_saida: str) -> None:
 
     with open(caminho_saida, 'w', encoding='utf-8') as f:
         f.writelines(buffer)
+
+if __name__ == "__main__":
+    pasta_script = os.path.dirname(os.path.abspath(__file__))
+    caminho = os.path.join(pasta_script, "labirinto.txt")
+
+    matriz, pos_inicial = carregar_matriz(caminho)
+    r, c = pos_inicial
+
+    resolver_labirinto(matriz, r, c)
+    renderizar_terminal(matriz)
