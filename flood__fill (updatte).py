@@ -3,13 +3,7 @@ import sys
 from typing import List, Tuple, Optional
 from pilha import Pilha, PilhaCheiaErro, PilhaVaziaErro
 
-def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[int]], Optional[Tuple[int, int]]]:
-    """
-    Lê o arquivo .txt. 
-    Identifica o caractere 'X' como ponto inicial, guarda suas coordenadas
-    e o converte para 0 (área livre).
-    Retorna a matriz e a tupla (linha, coluna) da posição do 'X'.
-    """
+def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[str]], Optional[Tuple[int, int]]]:
     matriz = []
     pos_inicial = None
 
@@ -20,14 +14,14 @@ def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[int]], Optional[Tup
                 if not linha_limpa:
                     continue
                 
-                linha_int = []
+                linha_chars = []
                 for c, char in enumerate(linha_limpa):
                     if char.upper() == 'X':
                         pos_inicial = (r, c)
-                        linha_int.append(0)  # X vira 0 (espaço preenchível)
+                        linha_chars.append('1')  # 'X' vira '1' para preenchimento
                     else:
-                        linha_int.append(int(char))
-                matriz.append(linha_int)
+                        linha_chars.append(char)
+                matriz.append(linha_chars)
 
         if not matriz or not matriz[0]:
             raise ValueError("Matriz vazia ou inválida.")
@@ -36,65 +30,86 @@ def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[int]], Optional[Tup
 
     except FileNotFoundError:
         raise FileNotFoundError(f"Arquivo '{caminho_arquivo}' não encontrado.")
-    except ValueError as e:
-        raise ValueError(f"Erro ao converter caracteres da matriz: {e}")
 
-def renderizar_terminal(matriz: List[List[int]], char_parede: str = '#') -> None:
-    """
-    Convenção do Enunciado:
-    1 = Parede (Renderizado como char_parede, ex: '#')
-    0 = Espaço em branco
-    >1 = Preenchimento / Caminho
-    """
+
+def renderizar_terminal(matriz: List[List[str]]) -> None:
     os.system('cls' if os.name == 'nt' else 'clear')
     linhas_str = []
     for linha in matriz:
         linha_fmt = []
         for val in linha:
-            if val == 1:
-                linha_fmt.append(char_parede)
-            elif val == 0:
-                linha_fmt.append(' ')
-            elif val == 2:
-                linha_fmt.append('@')  # Preenchimento / Visitado
-            elif val == 3:
-                linha_fmt.append('.')  # Caminho do labirinto
+            if val == '1':
+                linha_fmt.append(' ')   # '1' vira espaço
+            elif val == '0':
+                linha_fmt.append('#')   # '0' representa borda/parede
+            elif val == '2':
+                linha_fmt.append('@')   # Preenchido
+            elif val == '3':
+                linha_fmt.append('.')   # Caminho do Labirinto
             else:
-                linha_fmt.append(str(val))
+                linha_fmt.append(val)
         linhas_str.append("".join(linha_fmt))
     
     print("\n".join(linhas_str))
     print("=" * len(matriz[0]))
 
-def _checar_e_pausar(passos: int, contador: int, matriz: List[List[int]]) -> int:
+
+def _checar_e_pausar(passos: int, contador: int, matriz: List[List[str]]) -> int:
     contador += 1
     if passos > 0 and contador % passos == 0:
         renderizar_terminal(matriz)
         input(f"Passo {contador}. Pressione ENTER para continuar...")
     return contador
 
+
 # ==========================================
-# PROBLEMA 1: FLOOD FILL (CORRIGIDO)
+# SOLUÇÃO 1: RECURSIVA (FLOOD FILL)
+# ==========================================
+def flood_fill_recursivo(
+    matriz: List[List[str]], 
+    r: int, 
+    c: int, 
+    passos: int = 0, 
+    contador: List[int] = [0]
+) -> bool:
+    rows, cols = len(matriz), len(matriz[0])
+    
+    # Verifica limites ou se a célula não é '1'
+    if r < 0 or r >= rows or c < 0 or c >= cols or matriz[r][c] != '1':
+        return False
+
+    # Marca a célula com o caractere de preenchimento
+    matriz[r][c] = '2'
+    contador[0] = _checar_e_pausar(passos, contador[0], matriz)
+
+    # Chamadas recursivas nas 4 direções
+    toca_borda = (r == 0 or r == rows - 1 or c == 0 or c == cols - 1)
+    
+    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        if flood_fill_recursivo(matriz, r + dr, c + dc, passos, contador):
+            toca_borda = True
+
+    return toca_borda
+
+
+# ==========================================
+# SOLUÇÃO 2: ITERATIVA COM PILHA (FLOOD FILL)
 # ==========================================
 def flood_fill_iterativo(
-    matriz: List[List[int]], 
+    matriz: List[List[str]], 
     r_init: int, 
     c_init: int, 
-    novo_val: int = 2, 
     passos: int = 0
 ) -> None:
     rows, cols = len(matriz), len(matriz[0])
-    if matriz[r_init][c_init] != 0:
+    if matriz[r_init][c_init] != '1':
         return
 
-    # Usando obrigatoriamente a classe Pilha de pilha.py com int 1D
     pilha_posicoes = Pilha('i', rows * cols)
     
-    matriz[r_init][c_init] = novo_val
+    matriz[r_init][c_init] = '2'
     pilha_posicoes.empilha(r_init * cols + c_init)
     contador = 0
-
-    # Verifica se a região toca a borda (se sim, a matriz inteira vira zeros ao final)
     toca_borda = False
 
     while not pilha_posicoes.pilha_esta_vazia():
@@ -108,90 +123,29 @@ def flood_fill_iterativo(
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < rows and 0 <= nc < cols and matriz[nr][nc] == 0:
-                matriz[nr][nc] = novo_val
+            if 0 <= nr < rows and 0 <= nc < cols and matriz[nr][nc] == '1':
+                matriz[nr][nc] = '2'
                 pilha_posicoes.empilha(nr * cols + nc)
 
-    # Requisito do enunciado: Se a borda estiver aberta, transforma a matriz inteira em zeros
+    # Se vazou a borda, preenche toda a matriz com zeros
     if toca_borda:
-        for r in range(rows):
-            for c in range(cols):
-                matriz[r][c] = 0
+        for r_idx in range(rows):
+            for c_idx in range(cols):
+                matriz[r_idx][c_idx] = '0'
 
-# ==========================================
-# SOLUÇÃO ADICIONAL: LABIRINTO (DFS)
-# ==========================================
-def resolver_labirinto(
-    matriz: List[List[int]], 
-    r_init: int, 
-    c_init: int, 
-    passos: int = 0
-) -> bool:
-    """
-    Encontra e desenha o caminho de saída de um labirinto a partir de (r_init, c_init)
-    utilizando a Pilha de pilha.py para simular busca em profundidade (DFS).
-    """
-    rows, cols = len(matriz), len(matriz[0])
-    pilha = Pilha('i', rows * cols)
-    
-    # Rastreamento de pais para reconstruir o caminho correto ao final
-    veio_de = {}
-    visitados = set()
-
-    pos_inicial = r_init * cols + c_init
-    pilha.empilha(pos_inicial)
-    visitados.add(pos_inicial)
-
-    saida_encontrada = None
-    contador = 0
-
-    while not pilha.pilha_esta_vazia():
-        atual = pilha.desempilha()
-        r, c = atual // cols, atual % cols
-
-        # Se atingiu a borda (diferente do ponto inicial), encontrou a saída!
-        if (r == 0 or r == rows - 1 or c == 0 or c == cols - 1) and (r != r_init or c != c_init):
-            saida_encontrada = atual
-            break
-
-        # Marcação temporária de exploração
-        if matriz[r][c] == 0:
-            matriz[r][c] = 2
-            contador = _checar_e_pausar(passos, contador, matriz)
-
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nr, nc = r + dr, c + dc
-            vizinho = nr * cols + nc
-            if 0 <= nr < rows and 0 <= nc < cols and matriz[nr][nc] == 0 and vizinho not in visitados:
-                visitados.add(vizinho)
-                veio_de[vizinho] = atual
-                pilha.empilha(vizinho)
-
-    # Reconstrução e desenho do caminho final de saída
-    if saida_encontrada is not None:
-        curr = saida_encontrada
-        while curr in veio_de:
-            r, c = curr // cols, curr % cols
-            matriz[r][c] = 3  # Valor 3 representa o caminho final
-            curr = veio_de[curr]
-        r, c = r_init, c_init
-        matriz[r][c] = 3
-        return True
-
-    return False
 
 # ==========================================
 # EXPORTAÇÃO BITMAP (PPM)
 # ==========================================
-def salvar_bitmap_ppm(matriz: List[List[int]], caminho_saida: str) -> None:
+def salvar_bitmap_ppm(matriz: List[List[str]], caminho_saida: str) -> None:
     rows = len(matriz)
     cols = len(matriz[0])
     
     cores = {
-        0: "255 255 255 ",  # 0 = Branco (Espaço livre)
-        1: "0 0 0 ",        # 1 = Preto (Paredes)
-        2: "255 0 0 ",      # 2 = Vermelho (Região preenchida)
-        3: "0 255 0 ",      # 3 = Verde (Caminho do labirinto)
+        '1': "255 255 255 ",  # Fundo branco
+        '0': "0 0 0 ",        # Parede preta
+        '2': "255 0 0 ",      # Preenchimento vermelho
+        '3': "0 255 0 ",      # Labirinto verde
     }
 
     buffer = [f"P3\n{cols} {rows}\n255\n"]
@@ -204,12 +158,29 @@ def salvar_bitmap_ppm(matriz: List[List[int]], caminho_saida: str) -> None:
     with open(caminho_saida, 'w', encoding='utf-8') as f:
         f.writelines(buffer)
 
+
 if __name__ == "__main__":
     pasta_script = os.path.dirname(os.path.abspath(__file__))
-    caminho = os.path.join(pasta_script, "labirinto.txt")
+    caminho = os.path.join(pasta_script, "matriz.txt")
 
-    matriz, pos_inicial = carregar_matriz(caminho)
-    r, c = pos_inicial
+    if os.path.exists(caminho):
+        matriz, pos_inicial = carregar_matriz(caminho)
+        
+        if pos_inicial:
+            r, c = pos_inicial
+            
+            # Exibe a matriz inicial
+            print("Matriz Inicial:")
+            renderizar_terminal(matriz)
+            input("Pressione ENTER para iniciar a execução...")
 
-    resolver_labirinto(matriz, r, c)
-    renderizar_terminal(matriz)
+            # Execução com Pilha (mude para flood_fill_recursivo se desejar)
+            flood_fill_iterativo(matriz, r, c, passos=5)
+            
+            print("Matriz Final:")
+            renderizar_terminal(matriz)
+            salvar_bitmap_ppm(matriz, os.path.join(pasta_script, "resultado.ppm"))
+        else:
+            print("Erro: Posição 'X' não encontrada no arquivo de entrada.")
+    else:
+        print(f"Erro: Arquivo '{caminho}' não encontrado.")
