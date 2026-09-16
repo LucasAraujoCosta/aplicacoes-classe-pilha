@@ -1,14 +1,27 @@
 import os
 import sys
-from typing import List, Tuple, Optional
-from pilha import Pilha, PilhaCheiaErro, PilhaVaziaErro
+from typing import List, Tuple, Optional, Dict
+from pilha import Pilha
+
+# ==========================================
+# PALETA DE CORES (TERMINAL E PPM BITMAP)
+# ==========================================
+# Mapeia identificadores de cor para (Caractere Terminal, Código RGB PPM)
+PALETA_CORES: Dict[str, Tuple[str, str]] = {
+    'VERMELHO': ('@', "255 0 0 "),
+    'VERDE':    ('$', "0 255 0 "),
+    'AZUL':     ('%', "0 0 255 "),
+    'AMARELO':  ('&', "255 255 0 "),
+    'ROXO':     ('M', "128 0 128 "),
+    'CIANO':    ('C', "0 255 255 "),
+}
 
 def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[str]], Optional[Tuple[int, int]]]:
     matriz = []
     pos_inicial = None
 
     try:
-        with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+        with open(caminho_arquivo, 'r', encoding='utf-8-sig') as f:
             for r, linha in enumerate(f):
                 linha_limpa = linha.strip().replace(" ", "")
                 if not linha_limpa:
@@ -19,33 +32,39 @@ def carregar_matriz(caminho_arquivo: str) -> Tuple[List[List[str]], Optional[Tup
                     if char.upper() == 'X':
                         pos_inicial = (r, c)
                         linha_chars.append('1')  # 'X' vira '1' para preenchimento
-                    else:
+                    elif char in ('0', '1'):
                         linha_chars.append(char)
-                matriz.append(linha_chars)
+                
+                if linha_chars:
+                    matriz.append(linha_chars)
 
-        if not matriz or not matriz[0]:
-            raise ValueError("Matriz vazia ou inválida.")
+        if not matriz:
+            raise ValueError("O arquivo não contém uma matriz válida.")
 
         return matriz, pos_inicial
 
     except FileNotFoundError:
-        raise FileNotFoundError(f"Arquivo '{caminho_arquivo}' não encontrado.")
+        raise FileNotFoundError(f"Arquivo '{caminho_arquivo}' não foi encontrado.")
 
-
-def renderizar_terminal(matriz: List[List[str]]) -> None:
+# ==========================================
+# RENDERIZAÇÃO NO TERMINAL
+# ==========================================
+def renderizar_terminal(matriz: List[List[str]], paleta: Dict[str, Tuple[str, str]]) -> None:
     os.system('cls' if os.name == 'nt' else 'clear')
     linhas_str = []
+    
+    # Mapeia o caractere da cor de volta para exibição
+    mapa_char = {v[0]: v[0] for v in paleta.values()}
+
     for linha in matriz:
         linha_fmt = []
         for val in linha:
             if val == '1':
-                linha_fmt.append(' ')   # '1' vira espaço
+                linha_fmt.append(' ')   # '1' é região livre -> vira espaço
             elif val == '0':
-                linha_fmt.append('#')   # '0' representa borda/parede
-            elif val == '2':
-                linha_fmt.append('@')   # Preenchido
-            elif val == '3':
-                linha_fmt.append('.')   # Caminho do Labirinto
+                linha_fmt.append('#')   # '0' é parede -> vira '#'
+            elif val in mapa_char:
+                linha_fmt.append(val)   # Exibe o caractere da cor escolhida
             else:
                 linha_fmt.append(val)
         linhas_str.append("".join(linha_fmt))
@@ -53,62 +72,39 @@ def renderizar_terminal(matriz: List[List[str]]) -> None:
     print("\n".join(linhas_str))
     print("=" * len(matriz[0]))
 
-
-def _checar_e_pausar(passos: int, contador: int, matriz: List[List[str]]) -> int:
+def _checar_e_pausar(passos: int, contador: int, matriz: List[List[str]], paleta: Dict[str, Tuple[str, str]]) -> int:
     contador += 1
     if passos > 0 and contador % passos == 0:
-        renderizar_terminal(matriz)
-        input(f"Passo {contador}. Pressione ENTER para continuar...")
+        renderizar_terminal(matriz, paleta)
+        input(f"Passo {contador}. Pressione [ENTER] para continuar...")
     return contador
 
-
 # ==========================================
-# SOLUÇÃO 1: RECURSIVA (FLOOD FILL)
+# FLOOD FILL COM CORES (ITERATIVO COM PILHA)
 # ==========================================
-def flood_fill_recursivo(
-    matriz: List[List[str]], 
-    r: int, 
-    c: int, 
-    passos: int = 0, 
-    contador: List[int] = [0]
-) -> bool:
-    rows, cols = len(matriz), len(matriz[0])
-    
-    # Verifica limites ou se a célula não é '1'
-    if r < 0 or r >= rows or c < 0 or c >= cols or matriz[r][c] != '1':
-        return False
-
-    # Marca a célula com o caractere de preenchimento
-    matriz[r][c] = '2'
-    contador[0] = _checar_e_pausar(passos, contador[0], matriz)
-
-    # Chamadas recursivas nas 4 direções
-    toca_borda = (r == 0 or r == rows - 1 or c == 0 or c == cols - 1)
-    
-    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        if flood_fill_recursivo(matriz, r + dr, c + dc, passos, contador):
-            toca_borda = True
-
-    return toca_borda
-
-
-# ==========================================
-# SOLUÇÃO 2: ITERATIVA COM PILHA (FLOOD FILL)
-# ==========================================
-def flood_fill_iterativo(
+def flood_fill_paint(
     matriz: List[List[str]], 
     r_init: int, 
     c_init: int, 
+    char_cor: str = '@',
     passos: int = 0
 ) -> None:
+    """
+    Preenche uma região com uma cor especificada (char_cor) usando a TAD Pilha.
+    Se a borda for aberta (vazamento), preenche toda a matriz com '0's.
+    """
     rows, cols = len(matriz), len(matriz[0])
-    if matriz[r_init][c_init] != '1':
+    cor_alvo = matriz[r_init][c_init]
+
+    # Só preenche se a célula não for parede ('0') e for diferente da cor de destino
+    if cor_alvo == '0' or cor_alvo == char_cor:
         return
 
     pilha_posicoes = Pilha('i', rows * cols)
     
-    matriz[r_init][c_init] = '2'
+    matriz[r_init][c_init] = char_cor
     pilha_posicoes.empilha(r_init * cols + c_init)
+    
     contador = 0
     toca_borda = False
 
@@ -119,68 +115,92 @@ def flood_fill_iterativo(
         if r == 0 or r == rows - 1 or c == 0 or c == cols - 1:
             toca_borda = True
 
-        contador = _checar_e_pausar(passos, contador, matriz)
+        contador = _checar_e_pausar(passos, contador, matriz, PALETA_CORES)
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < rows and 0 <= nc < cols and matriz[nr][nc] == '1':
-                matriz[nr][nc] = '2'
+            if 0 <= nr < rows and 0 <= nc < cols and matriz[nr][nc] == cor_alvo:
+                matriz[nr][nc] = char_cor
                 pilha_posicoes.empilha(nr * cols + nc)
 
-    # Se vazou a borda, preenche toda a matriz com zeros
+    # Requisito do enunciado: Se a borda for aberta, a matriz inteira vira zeros
     if toca_borda:
         for r_idx in range(rows):
             for c_idx in range(cols):
                 matriz[r_idx][c_idx] = '0'
 
-
 # ==========================================
-# EXPORTAÇÃO BITMAP (PPM)
+# EXPORTAÇÃO BITMAP (PPM COM CORES MS-PAINT)
 # ==========================================
 def salvar_bitmap_ppm(matriz: List[List[str]], caminho_saida: str) -> None:
     rows = len(matriz)
     cols = len(matriz[0])
     
-    cores = {
-        '1': "255 255 255 ",  # Fundo branco
-        '0': "0 0 0 ",        # Parede preta
-        '2': "255 0 0 ",      # Preenchimento vermelho
-        '3': "0 255 0 ",      # Labirinto verde
+    # Mapeamento dinâmico de cores RGB
+    mapa_rgb = {
+        '1': "255 255 255 ",  # Fundo livre = Branco
+        '0': "0 0 0 ",        # Parede/Borda = Preto
     }
+    for _, (char_c, rgb) in PALETA_CORES.items():
+        mapa_rgb[char_c] = rgb
 
     buffer = [f"P3\n{cols} {rows}\n255\n"]
     for linha in matriz:
         linha_buffer = []
         for val in linha:
-            linha_buffer.append(cores.get(val, "128 128 128 "))
+            linha_buffer.append(mapa_rgb.get(val, "128 128 128 "))
         buffer.append("".join(linha_buffer) + "\n")
 
     with open(caminho_saida, 'w', encoding='utf-8') as f:
         f.writelines(buffer)
 
 
+# ==========================================
+# EXECUÇÃO INTERATIVA
+# ==========================================
 if __name__ == "__main__":
     pasta_script = os.path.dirname(os.path.abspath(__file__))
-    caminho = os.path.join(pasta_script, "matriz.txt")
+    caminho_txt = os.path.join(pasta_script, "matriz.txt")
 
-    if os.path.exists(caminho):
-        matriz, pos_inicial = carregar_matriz(caminho)
+    if os.path.exists(caminho_txt):
+        matriz, pos_inicial = carregar_matriz(caminho_txt)
         
         if pos_inicial:
             r, c = pos_inicial
             
-            # Exibe a matriz inicial
-            print("Matriz Inicial:")
-            renderizar_terminal(matriz)
-            input("Pressione ENTER para iniciar a execução...")
-
-            # Execução com Pilha (mude para flood_fill_recursivo se desejar)
-            flood_fill_iterativo(matriz, r, c, passos=5)
+            print("===========================================")
+            print("       FERRAMENTA PAINT - FLOOD FILL       ")
+            print("===========================================")
+            print("Escolha a cor de preenchimento:")
             
-            print("Matriz Final:")
-            renderizar_terminal(matriz)
-            salvar_bitmap_ppm(matriz, os.path.join(pasta_script, "resultado.ppm"))
+            opcoes_cores = list(PALETA_CORES.keys())
+            for idx, cor in enumerate(opcoes_cores, 1):
+                print(f"[{idx}] {cor}")
+            
+            idx_escolha = input("Digite o número da cor desejada [Padrão 1 - VERMELHO]: ").strip()
+            idx_escolha = int(idx_escolha) - 1 if idx_escolha.isdigit() and 1 <= int(idx_escolha) <= len(opcoes_cores) else 0
+            
+            nome_cor_escolhida = opcoes_cores[idx_escolha]
+            char_cor, _ = PALETA_CORES[nome_cor_escolhida]
+
+            passos_input = input("Digite a quantidade P de passos para pausa (0 = sem paradas): ").strip()
+            passos = int(passos_input) if passos_input.isdigit() else 0
+
+            print("\nMatriz Original:")
+            renderizar_terminal(matriz, PALETA_CORES)
+            input("Pressione [ENTER] para iniciar o preenchimento...")
+
+            # Executa o preenchimento com a cor selecionada
+            flood_fill_paint(matriz, r, c, char_cor=char_cor, passos=passos)
+
+            print(f"\nMatriz Final (Preenchida com {nome_cor_escolhida}):")
+            renderizar_terminal(matriz, PALETA_CORES)
+            
+            caminho_ppm = os.path.join(pasta_script, f"resultado_{nome_cor_escolhida.lower()}.ppm")
+            salvar_bitmap_ppm(matriz, caminho_ppm)
+            print(f"Imagem Bitmap gerada em: {caminho_ppm}")
+
         else:
-            print("Erro: Posição 'X' não encontrada no arquivo de entrada.")
+            print("Erro: Posição 'X' não encontrada na matriz.")
     else:
-        print(f"Erro: Arquivo '{caminho}' não encontrado.")
+        print(f"Erro: Arquivo '{caminho_txt}' não encontrado.")
