@@ -1,6 +1,6 @@
 # POST MORTEM: Análise, Refatoração, Auditoria e Testes dos Algoritmos de Flood Fill, Labirinto e Torre de Hanói
 
-Este documento registra o histórico de iteração, auditoria de código, justificativas de refatoração, correções de especificação e evidências de testes referentes às soluções desenvolvidas para os algoritmos de **Flood Fill / Labirinto** e **Torre de Hanói Visual**, utilizando rigorosamente a estrutura base `Pilha` definida em `pilha.py`.
+Este documento registra o histórico de iteração, auditoria de código, justificativas de refatoração, correções de especificação e evidências de testes referentes às soluções desenvolvidas para os algoritmos de **Flood Fill / Labirinto / Paint Multicolorido** e **Torre de Hanói Visual**, utilizando rigorosamente a estrutura base `Pilha` definida em `pilha.py`.
 
 ---
 
@@ -17,16 +17,19 @@ Este documento registra o histórico de iteração, auditoria de código, justif
 ### Prompt 3 (Auditoria e Ajustes Finais do Enunciado da Torre de Hanói)
 > *Análise da necessidade das alterações realizadas no script da Torre de Hanói para atestar conformidade estrita com o enunciado.*
 
+### Prompt 4 (Suporte a Cores Diversas / Estilo MS-Paint)
+> *Implementação da funcionalidade 'Balde de Tintas' permitindo seleção de múltiplas cores no preenchimento e mapeamento RGB para exportação em Bitmap PPM.*
+
 ---
 
 ## 2. Code Review Crítico e Falhas Identificadas
 
 Uma auditoria detalhada na versão inicial revelou problemas técnicos e desalinhamentos com as regras do enunciado:
 
-### A. Divergências no Problema 1 (Flood Fill / Labirinto)
+### A. Divergências no Problema 1 (Flood Fill / Labirinto / Paint)
 * **Leitura do 'X'**: O leitor de matriz inicial assumia apenas inteiros (`int(c)`). A presença do caractere `'X'` (ponto de partida) no arquivo `.txt` causava o lançamento de uma exceção `ValueError`.
-* **Inversão da Semântica dos Caracteres**: O enunciado define 1 como parede e 0 como espaço livre. A versão inicial renderizava 1 como espaço em branco e 0 como `#`, invertendo a convenção visual esperada.
-* **Módulo de Labirinto Ausente**: Faltava a rotina explícita para navegação e marcação do caminho de saída de um labirinto (DFS).
+* **Inversão da Semântica dos Caracteres**: O enunciado define 1 como área livre preenchível e 0 como parede/borda. A versão inicial renderizava 1 como espaço em branco e 0 como `#`, invertendo a convenção visual esperada.
+* **Módulo de Labirinto e Suporte a Múltiplas Cores Ausentes**: Faltava a rotina explícita para navegação e marcação do caminho de saída de um labirinto (DFS), bem como a opção de seleção interativa de paleta de cores (estilo MS-Paint).
 
 ### B. Divergências no Problema 2 (Torre de Hanói)
 * **Erro de Sintaxe em `iniciar`**: O método `iniciar()` foi definido sem o parâmetro `self`, resultando em lançamento de `TypeError` ao ser invocado.
@@ -45,21 +48,24 @@ Uma auditoria detalhada na versão inicial revelou problemas técnicos e desalin
 As seguintes modificações foram implementadas no código revisado:
 
 1. **Parser Inteligente com Captura do 'X'**:
-   * O método `carregar_matriz` mapeia o caractere `'X'`, armazena suas coordenadas `(r_init, c_init)` e o converte para 0 para ser processado como o ponto inicial do preenchimento.
+   * O método `carregar_matriz` mapeia o caractere `'X'`, armazena suas coordenadas `(r_init, c_init)` e o converte para `'1'` para ser processado como o ponto inicial do preenchimento.
 
 2. **Ajuste Fiel das Convenções de Exibição (Flood Fill)**:
-   * O mapeamento visual no terminal e no Bitmap (PPM) foi corrigido: o valor 1 representa paredes (`#` no terminal e preto no bitmap), o valor 0 representa espaço livre (espaço em branco no terminal e branco no bitmap), o valor 2 representa a área preenchida (`@` no terminal e vermelho no bitmap) e o valor 3 representa o caminho do labirinto (`.` no terminal e verde no bitmap).
+   * O mapeamento visual no terminal e no Bitmap (PPM) foi corrigido: o valor `'1'` representa fundo livre (espaço no terminal / branco no PPM), o valor `'0'` representa paredes (`#` no terminal / preto no PPM) e caracteres da paleta representam as cores selecionadas.
 
-3. **Módulo Dedicado para Resolução de Labirintos (DFS)**:
+3. **Módulo de Cores Diversas (Estilo MS-Paint)**:
+   * Criação do dicionário `PALETA_CORES` relacionando identificadores de cores (Vermelho, Verde, Azul, Amarelo, Roxo, Ciano) aos seus respectivos caracteres de terminal e códigos RGB para exportação PPM.
+
+4. **Módulo Dedicado para Resolução de Labirintos (DFS)**:
    * Implementação da função `resolver_labirinto` utilizando a classe `Pilha` para realizar uma busca em profundidade que encontra a borda de saída e reconstrói o caminho percorrido.
 
-4. **Correção Total do Módulo Torre de Hanói**:
+5. **Correção Total do Módulo Torre de Hanói**:
    * Adição do parâmetro `self` no método `iniciar(self)`.
    * Substituição do caractere de desenho dos discos para `#` e haste para `|`.
    * Implementação do método `renderizar_horizontal()` para exibir os arrays dos pinos em formato de lista junto da exibição vertical.
    * Leitura do estado dos pinos via desempilhamento e re-empilhamento temporário, respeitando 100% o encapsulamento da classe `Pilha` sem acessar `_dados`.
 
-5. **Visitação Imediata e Buffered I/O**:
+6. **Visitação Imediata e Buffered I/O**:
    * Marcação imediata das células ao empilhar, garantindo complexidade de espaço O(M x N) na pilha, e uso de `writelines()` para gravação instantânea do Bitmap PPM.
 
 ---
@@ -73,7 +79,8 @@ Os testes foram executados utilizando matrizes sintéticas de dimensão 500 x 50
 | Caso de Teste / Funcionalidade | Solução Inicial | Solução Final Refatorada | Status / Resultado |
 | :--- | :--- | :--- | :--- |
 | **Leitura de Arquivo com 'X'** | Falha (ValueError) | **Sucesso** (Identifica e inicia em X) | **Especificação Atendida** |
-| **Convenção 1 (Parede) e 0 (Livre)** | Invertida | **Correta** (1 vira #, 0 vira Espaço) | **Especificação Atendida** |
+| **Convenção 1 (Livre) e 0 (Parede)** | Invertida | **Correta** (1 vira Espaço, 0 vira #) | **Especificação Atendida** |
+| **Paleta Multicolorida (MS-Paint)** | Ausente | **Implementada** (Suporte a 6 cores + RGB PPM) | **Especificação Atendida** |
 | **Resolução de Labirinto (DFS)** | Ausente | **Implementada** (Traça caminho de saída) | **Especificação Atendida** |
 | **Sintaxe de `iniciar` (Hanói)** | Falha (TypeError) | **Corrigida** (`def iniciar(self):`) | **Erro Corrigido** |
 | **Desenho dos Discos (Hanói)** | Usava `=` | **Corrigido** (Usa `#` para discos e `|` para hastes) | **Especificação Atendida** |
@@ -122,7 +129,7 @@ Após novas análises da especificação do problema da **Torre de Hanói**, ide
 
 A refatoração atendeu 100% das especificações conceituais, visuais e funcionais dos **dois programas solicitados**:
 
-1. **Módulo de Preenchimento (Flood Fill e Labirinto):** Teve sua semântica de caracteres corrigida, a captura do ponto inicial `'X'` garantida, as implementações **recursiva** e **iterativa com Pilha** validadas contra estouros de memória e a exportação Bitmap (PPM) otimizada.
+1. **Módulo de Preenchimento (Flood Fill, Paint e Labirinto):** Teve sua semântica de caracteres corrigida, a captura do ponto inicial `'X'` garantida, as implementações **recursiva** e **iterativa com Pilha** validadas contra estouros de memória, a adição do suporte a **múltiplas cores no estilo MS-Paint** e a exportação Bitmap (PPM) colorida otimizada.
 2. **Módulo da Torre de Hanói:** Teve a rotina recursiva alinhada às regras do enunciado, com suporte total à interatividade (N discos e M passos), exibição contínua dos movimentos acumulados, renderizações gráfica (vertical) e em lista (horizontal) e respeito estrito ao encapsulamento do TAD `Pilha`.
 
 Com a eliminação dos gargalos de I/O, correção dos desvios de layout e garantia de estabilidade nas estruturas de dados, ambos os programas encontram-se robustos, performáticos e plenamente em conformidade com os requisitos dos dois enunciados.
