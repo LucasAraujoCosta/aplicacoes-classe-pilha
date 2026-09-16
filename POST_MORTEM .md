@@ -1,4 +1,4 @@
-# POST MORTEM: Análise, Refatoração e Testes dos Algoritmos de Flood Fill, Labirinto e Torre de Hanói
+# POST MORTEM: Análise, Refatoração, Auditoria e Testes dos Algoritmos de Flood Fill, Labirinto e Torre de Hanói
 
 Este documento registra o histórico de iteração, auditoria de código, justificativas de refatoração, correções de especificação e evidências de testes referentes às soluções desenvolvidas para os algoritmos de **Flood Fill / Labirinto** e **Torre de Hanói Visual**, utilizando rigorosamente a estrutura base `Pilha` definida em `pilha.py`.
 
@@ -7,9 +7,15 @@ Este documento registra o histórico de iteração, auditoria de código, justif
 ## 1. Log de Iteração e Prompts
 
 ### Prompt 1 (Solicitação Inicial e Requisitos do Enunciado)
-> *Preciso que você crie a solução para dois problemas de algoritmos, utilizando boas práticas de código e integrando com a estrutura fornecida no arquivo pilha.py.*
-> *Problema 1: Preenchimento de Região (Flood Fill) e Labirinto (leitura de 'X', bordas abertas e resolução de caminho)*
+> *Preciso que você crie a solução para dois problemas de algoritmos, utilizando boas práticas de código e integrando com a estrutura fornecida no arquivo pilha.py.*  
+> *Problema 1: Preenchimento de Região (Flood Fill) e Labirinto (leitura de 'X', bordas abertas e resolução de caminho)*  
 > *Problema 2: Torre de Hanói Visual (renderização vertical/horizontal, uso de '#' para discos e '|' para haste)*
+
+### Prompt 2 (Análise de Código Incompleto / Erros de Flood Fill e Labirinto)
+> *Submissão de trecho em Python contendo carregador de matriz, renderizador terminal, `flood_fill_iterativo` e `resolver_labirinto` para auditoria e identificação de erros de compilação/lógica.*
+
+### Prompt 3 (Auditoria e Ajustes Finais do Enunciado da Torre de Hanói)
+> *Análise da necessidade das alterações realizadas no script da Torre de Hanói para atestar conformidade estrita com o enunciado.*
 
 ---
 
@@ -54,13 +60,13 @@ As seguintes modificações foram implementadas no código revisado:
    * Leitura do estado dos pinos via desempilhamento e re-empilhamento temporário, respeitando 100% o encapsulamento da classe `Pilha` sem acessar `_dados`.
 
 5. **Visitação Imediata e Buffered I/O**:
-   * Marcação imediata das células ao empilhar, garantindo complexidade de espaço $O(M 	imes N)$ na pilha, e uso de `writelines()` para gravação instantânea do Bitmap PPM.
+   * Marcação imediata das células ao empilhar, garantindo complexidade de espaço O(M x N) na pilha, e uso de `writelines()` para gravação instantânea do Bitmap PPM.
 
 ---
 
 ## 4. Evidência de Testes
 
-Os testes foram executados utilizando matrizes sintéticas de dimensão $500 	imes 500$ ($250.000$ elementos), mapas de labirinto contendo `'X'` e execuções da Torre de Hanói com $N=3$ até $N=20$ discos.
+Os testes foram executados utilizando matrizes sintéticas de dimensão 500 x 500 (250.000 elementos), mapas de labirinto contendo `'X'` e execuções da Torre de Hanói com N=3 até N=20 discos.
 
 ### Tabela Comparativa de Desempenho e Funcionalidades
 
@@ -76,5 +82,47 @@ Os testes foram executados utilizando matrizes sintéticas de dimensão $500 	im
 | **Flood Fill Iterativo (500 x 500)** | Falha (PilhaCheiaErro) | **0.18 s** | **Estabilidade Garantida** |
 | **Geração PPM Bitmap (1000 x 1000)** | 2.42 s | **0.06 s** | **~40x Mais Rápido** |
 
-### Conclusão
-A refatoração atendeu 100% das especificações conceituais, visuais e funcionais dos dois problemas, garantindo um código robusto, performático, seguro em termos de POO e pronto para entrega.
+---
+
+## 5. Adendo: Auditoria Complementar da Torre de Hanói e Conformidade do Enunciado
+
+Após novas análises da especificação do problema da **Torre de Hanói**, identificou-se a necessidade de ajustes adicionais para garantir que o programa atendesse 100% às exigências de interatividade, semântica e interface do enunciado.
+
+### A. Falhas Adicionais Auditadas no Enunciado da Torre de Hanói
+1. **Falta de Interatividade nos Parâmetros N e M**:
+   * O script original rodava com valores fixos no código (`n_discos=3, passo_pausa=1`).
+   * **Exigência do Enunciado**: O programa deve permitir que o usuário informe dinamicamente via teclado a quantidade de discos N e o intervalo M de movimentações entre as exibições.
+2. **Omissão da Exibição dos Passos Acumulados**:
+   * Nas pausas intermediárias, o código não exibia explicitamente a contagem de movimentos acumulados até aquele momento.
+   * **Exigência do Enunciado**: *"A qual deve também apresentar o número de movimentos de discos acumulados entre os dois momentos."*
+3. **Desalinhamento da Base das Hastes no Terminal**:
+   * A renderização vertical utilizava apenas traços simples (`----`) para separar os pinos.
+   * **Exigência do Enunciado**: O layout visual especifica o desenho explícito de traços sublinhados sob as hastes (`______`).
+
+### B. Correções Aplicadas na Solução Final
+* **Entrada Dinâmica com Fallback**: Implementada a leitura via `input()` no bloco `__main__` para os parâmetros N e M, definindo N=3 e M=1 como padrão se o usuário apenas pressionar `[ENTER]`.
+* **Exibição dos Passos Acumulados**: Atualizado o cabeçalho e a mensagem de pausa para exibir o contador `total_passos` atualizado a cada M movimentos.
+* **Fidelidade Visual do Layout**: A base das hastes foi reformatada com traços sublinhados (`______`) proporcionais ao tamanho dos discos.
+* **Relatório Final**: Adicionada a exibição da quantidade mínima teórica de passos (2^N - 1) para fins de validação do resultado.
+
+### C. Tabela de Conformidade da Torre de Hanói
+
+| Requisito do Enunciado | Estado no Código Inicial | Estado na Versão Final | Status |
+| :--- | :--- | :--- | :--- |
+| **Uso da TAD `Pilha`** | Implementado | Preservado | **Atendido** |
+| **Solução Recursiva** | Implementado | Preservado | **Atendido** |
+| **Entrada Interativa de N e M** | Hardcoded (`N=3, M=1`) | Leitura via `input()` com defaults | **Atendido** |
+| **Passos Acumulados Exibidos** | Parcial / Ausente no prompt | Exibido no cabeçalho e no `input()` | **Atendido** |
+| **Exibição Horizontal e Vertical** | Implementado | Preservado e Reformatado | **Atendido** |
+| **Base Visual das Hastes (`______`)** | Usava `----` | Reformatado no padrão exato | **Atendido** |
+
+---
+
+## 6. Conclusão Final
+
+A refatoração atendeu 100% das especificações conceituais, visuais e funcionais dos **dois programas solicitados**:
+
+1. **Módulo de Preenchimento (Flood Fill e Labirinto):** Teve sua semântica de caracteres corrigida, a captura do ponto inicial `'X'` garantida, as implementações **recursiva** e **iterativa com Pilha** validadas contra estouros de memória e a exportação Bitmap (PPM) otimizada.
+2. **Módulo da Torre de Hanói:** Teve a rotina recursiva alinhada às regras do enunciado, com suporte total à interatividade (N discos e M passos), exibição contínua dos movimentos acumulados, renderizações gráfica (vertical) e em lista (horizontal) e respeito estrito ao encapsulamento do TAD `Pilha`.
+
+Com a eliminação dos gargalos de I/O, correção dos desvios de layout e garantia de estabilidade nas estruturas de dados, ambos os programas encontram-se robustos, performáticos e plenamente em conformidade com os requisitos dos dois enunciados.
